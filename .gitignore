@@ -12,3 +12,5 @@ product_master*.csv
 !tests/fixtures/*.csv
 
 docs/
+commit-msg.txt
+tables/
