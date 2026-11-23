@@ -26,10 +26,10 @@ CREATE TABLE IF NOT EXISTS rounds (
     next_page       INTEGER NOT NULL DEFAULT 1,
     total_count     INTEGER,
     rows_received   INTEGER NOT NULL DEFAULT 0,
-    started_at      TEXT NOT NULL,        -- KST ISO
+    started_at      TEXT NOT NULL,        -- KST, 'YYYY-MM-DDTHH:MM:SS'
     finished_at     TEXT,
-    stop_reason     TEXT,                 -- RUNNING 으로 멈춘 이유 (한도 초과 · 재시도)
-    fail_reason     TEXT                  -- COUNT_MISMATCH · EMPTY_FULL · KEY_REJECTED · ERROR …
+    last_code       TEXT,                 -- 마지막 응답 코드 또는 실패 사유 (COUNT_MISMATCH · EMPTY_FULL …)
+    last_message    TEXT
 );
 -- API 당 RUNNING 회차는 1개만
 CREATE UNIQUE INDEX IF NOT EXISTS ux_rounds_running ON rounds(api) WHERE status = 'RUNNING';
@@ -38,9 +38,8 @@ CREATE INDEX IF NOT EXISTS ix_rounds_api_status ON rounds(api, status, finished_
 CREATE TABLE IF NOT EXISTS call_log (
     id          INTEGER PRIMARY KEY,
     api         TEXT NOT NULL,
-    called_at   TEXT NOT NULL,            -- KST ISO
-    no_cond     INTEGER NOT NULL,         -- 식품안전나라를 CHNG_DT 없이 부른 호출 (1시간 한도 대상)
-    result      TEXT NOT NULL
+    called_at   TEXT NOT NULL,            -- KST, 'YYYY-MM-DDTHH:MM:SS'
+    code        TEXT NOT NULL             -- 응답 코드 (INFO-000 · 22 · NETWORK …)
 );
 CREATE INDEX IF NOT EXISTS ix_call_log_api_time ON call_log(api, called_at);
 
@@ -48,9 +47,10 @@ CREATE TABLE IF NOT EXISTS raw (
     id          INTEGER PRIMARY KEY,
     api         TEXT NOT NULL,
     round_id    INTEGER NOT NULL REFERENCES rounds(id),
-    page        INTEGER NOT NULL,
-    data        TEXT NOT NULL             -- 필요한 필드만 남긴 JSON
+    row_hash    TEXT NOT NULL,            -- data 의 sha256. 같은 회차 안 같은 행은 한 번만
+    data        TEXT NOT NULL             -- 응답 한 행 JSON (큰 API 는 필요한 필드만 — collect/collector.py KEEP_FIELDS)
 );
+CREATE UNIQUE INDEX IF NOT EXISTS ux_raw_round_hash ON raw(round_id, row_hash);
 CREATE INDEX IF NOT EXISTS ix_raw_api_round ON raw(api, round_id);
 
 CREATE TABLE IF NOT EXISTS brand_groups (

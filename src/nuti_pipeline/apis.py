@@ -26,6 +26,7 @@ class Api:
     condition: Condition
     daily_limit: int | None  # None = 설정값(DATAGOKR_DAILY_LIMIT)
     total_untrusted: bool = False  # C005: totalCount 를 못 믿음 → 빈/덜 찬 페이지까지
+    extra_params: tuple[tuple[str, str], ...] = ()  # 공공데이터포털 서비스별 추가 파라미터 ((이름, 값), …)
 
 
 _D, _F = Provider.DATA_GO_KR, Provider.FOOD_SAFETY
@@ -36,7 +37,9 @@ APIS: dict[str, Api] = {a.name: a for a in (
     Api("FOODQR_LIST", "푸드QR 목록", _D, "1471000/FoodQrInfoService01/getFoodQrProdList01", 100, _N, None),
     Api("FOODQR_NUTRITION", "푸드QR 영양", _D, "1471000/FoodQrInfoService01/getFoodQrProdNsd01", 100, _N, None),
     Api("FOODQR_MAKER", "푸드QR 제조", _D, "1471000/FoodQrInfoService01/getFoodQrProdMnfInfo01", 100, _N, None),
-    Api("HACCP", "HACCP 포장표기", _D, "B553748/CertImgListServiceV3/getCertImgListServiceV3", 100, _N, None),
+    # HACCP 는 type=json 을 무시하고 XML 을 준다. returnType=json 이라야 JSON (2026-11-23 확인). 성공 코드도 "00" 이 아니라 "OK"
+    Api("HACCP", "HACCP 포장표기", _D, "B553748/CertImgListServiceV3/getCertImgListServiceV3", 100, _N, None,
+        extra_params=(("returnType", "json"),)),
     Api("C005", "C005 바코드연계제품", _F, "C005", 1000, _C, 500, total_untrusted=True),
     Api("I2570", "I2570 유통바코드", _F, "I2570", 1000, _C, 500),
     Api("C002", "C002 품목제조보고 원재료", _F, "C002", 1000, _C, 1000),

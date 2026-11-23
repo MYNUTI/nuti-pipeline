@@ -10,3 +10,5 @@ build/
 # 원본 대조용 큰 파일은 레포에 넣지 않음
 product_master*.csv
 !tests/fixtures/*.csv
+
+docs/
