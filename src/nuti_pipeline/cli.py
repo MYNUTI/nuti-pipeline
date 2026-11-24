@@ -9,8 +9,11 @@
   round step <회차ID> [--max N]                 회차 손으로 이어 받기 (밤 제한 무시, 한도는 지킴)
   round cancel <회차ID>                         회차 취소 (받은 행도 지움)
   status                            API 별 회차 · 원본 행 수 · 오늘 호출 수
-  build [--again]                   (하루 1회, 07시 전후) 34컬럼 계산 → CSV        ※ 아직 구현 전
-  categorize export|import          분류 검토 대기 목록 내보내기 / 넣기           ※ 아직 구현 전
+  seed categories <product_master.csv>   지금 RDS 와 같은 분류로 분류표 채우기 (처음 한 번)
+  seed groups <묶음 구성표.csv>          묶음 구성 채우기 (처음 한 번)
+  build [--again] [--force] [--dry-run]  (하루 1회, 07시 전후) 34컬럼 계산 → CSV
+  categorize export|import [파일]        분류 검토 대기 목록 내보내기 / 채운 파일 넣기
+  diff <이전.csv> <새.csv>               두 CSV 에서 바뀐 행 · 칸 비교
 """
 from __future__ import annotations
 
@@ -143,14 +146,87 @@ def cmd_status(s: Settings, _a) -> int:
                   if last else "-")
         print(f"{api.name:<17}{last_s:<44}{(full['finished_at'] if full else '-'):<22}{raw:>12,}"
               f"{c.calls_today(api):>6}/{c.daily_limit(api):<5}")
+    from . import build
+    print()
+    last = conn.execute("SELECT * FROM builds ORDER BY id DESC LIMIT 1").fetchone()
+    print(f"마지막 build: {last['built_at']} {last['file_name']} ({last['row_count']:,}행, 분류 대기 {last['held_back']:,})"
+          if last else "마지막 build: 없음")
+    print(f"분류표 {conn.execute('SELECT COUNT(*) FROM category_map').fetchone()[0]:,}행 · "
+          f"묶음 {conn.execute('SELECT COUNT(*) FROM brand_groups').fetchone()[0]:,}행 · "
+          f"분류 검토 대기 {conn.execute('SELECT COUNT(*) FROM category_review').fetchone()[0]:,}개")
+    blk = build.blockers(conn)
+    print("build 가능" if not blk else "build 를 막는 것 (전량을 끝까지 받은 적 없음): " + ", ".join(b.split("(")[0] for b in blk))
     return 0
 
 
-def _not_yet(name: str):
-    def run(_s, _a) -> int:
-        print(f"{name}: 아직 구현 전", file=sys.stderr)
-        return 2
-    return run
+
+def cmd_build(s: Settings, a) -> int:
+    from . import build
+    conn = db.connect(s.state_db)
+    try:
+        rep = build.run(conn, s.csv_dir, force=a.force, again=a.again, dry_run=a.dry_run)
+    except (build.BuildRefused, FileExistsError) as e:
+        print(f"만들지 않음: {e}", file=sys.stderr)
+        return 1
+    if rep.skipped:
+        print("CSV 를 만들지 않았습니다:")
+        for x in rep.skipped:
+            print(f"  {x}")
+        return 0
+    st = rep.stats
+    print(f"{'미리보기' if a.dry_run else 'CSV'}: {rep.file} ({rep.rows:,}행)")
+    print(f"  영양성분DB {st.nutri_rows:,} · 푸드QR {st.foodqr_rows:,} (영양성분DB 와 겹쳐 뺀 푸드QR {st.foodqr_excluded:,})")
+    print(f"  바코드 {st.with_barcode:,} (제품명+제조사로 찾음 {st.barcode_by_name:,}, 겹쳐서 비움 {st.barcode_cleared:,})")
+    print(f"  원재료 {st.with_ingredients:,} · 생산중단 {st.discontinued:,} · 브랜드 {st.with_brand:,} · 분류 {st.with_category:,}")
+    print(f"  새 제품 {st.new_products:,} · 새 묶음 {rep.new_groups:,} · 지명 {rep.place_names:,}개")
+    if rep.held_back:
+        print(f"  분류가 안 정해져 이번 CSV 에서 뺀 새 제품 {len(rep.held_back):,}개 → pipeline categorize export")
+    return 0
+
+
+def cmd_seed(s: Settings, a) -> int:
+    from . import build
+    conn = db.connect(s.state_db)
+    try:
+        if a.what == "categories":
+            n, with_cat = build.seed_categories(conn, Path(a.file), replace=a.replace)
+            print(f"분류표 {n:,}행 (분류 있음 {with_cat:,} · 분류 제외 {n - with_cat:,})")
+        else:
+            n, groups = build.seed_groups(conn, Path(a.file), replace=a.replace)
+            print(f"묶음 구성 {n:,}행 · 묶음 {groups:,}개")
+    except build.BuildRefused as e:
+        print(f"실패: {e}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def cmd_categorize(s: Settings, a) -> int:
+    from . import build
+    conn = db.connect(s.state_db)
+    path = Path(a.file)
+    if a.action == "export":
+        n = build.export_review(conn, path)
+        print(f"검토 대기 {n:,}개 → {path}")
+        print(f"  category 칸을 채운 뒤 pipeline categorize import {path} (분류 제외로 확정하려면 「{build.NO_CATEGORY}」)")
+    else:
+        done, skipped = build.import_review(conn, path)
+        print(f"분류표에 {done:,}개 넣음 · category 가 비어 건너뜀 {skipped:,}개")
+    return 0
+
+
+def cmd_diff(_s: Settings, a) -> int:
+    from . import build
+    rep = build.diff(Path(a.old), Path(a.new), a.examples)
+    print(f"이전 {rep.old_rows:,}행 / 새 {rep.new_rows:,}행")
+    print(f"  같음 {rep.same:,} · 바뀜 {rep.changed:,} · 새로 생김 {len(rep.added):,} · 사라짐 {len(rep.removed):,}")
+    for col, n in sorted(rep.by_column.items(), key=lambda kv: -kv[1]):
+        print(f"  [{col}] {n:,}행")
+        for mid, old, new in rep.examples[col]:
+            print(f"      {mid}: {old!r} → {new!r}")
+    for title, ids in (("새로 생김", rep.added), ("사라짐", rep.removed)):
+        if ids:
+            print(f"  {title} 예: {', '.join(ids[:a.examples])}")
+    return 0
 
 
 # ── 진입점 ────────────────────────────────────────────────────────────────
@@ -189,12 +265,26 @@ def main(argv: list[str] | None = None) -> int:
 
     b = sub.add_parser("build")
     b.add_argument("--again", action="store_true", help="오늘 파일이 이미 있으면 _2 를 붙여 다시 만듦")
-    b.set_defaults(fn=_not_yet("build"), locked=True)
+    b.add_argument("--force", action="store_true", help="새로 끝난 회차가 없어도 만듦")
+    b.add_argument("--dry-run", action="store_true", help="계산만 하고 data/preview/ 에 씀 (api 가 읽는 csv/ 와 state.db 는 안 건드림)")
+    b.set_defaults(fn=cmd_build, locked=True)
+
+    sd = sub.add_parser("seed")
+    sd.add_argument("what", choices=["categories", "groups"])
+    sd.add_argument("file")
+    sd.add_argument("--replace", action="store_true", help="이미 있으면 지우고 다시 채움")
+    sd.set_defaults(fn=cmd_seed, locked=True)
 
     c = sub.add_parser("categorize")
     c.add_argument("action", choices=["export", "import"])
-    c.add_argument("file", nargs="?")
-    c.set_defaults(fn=_not_yet("categorize"), locked=True)
+    c.add_argument("file", nargs="?", default="category_review.csv")
+    c.set_defaults(fn=cmd_categorize, locked=True)
+
+    d = sub.add_parser("diff")
+    d.add_argument("old")
+    d.add_argument("new")
+    d.add_argument("--examples", type=int, default=5)
+    d.set_defaults(fn=cmd_diff, locked=False)
 
     a = p.parse_args(argv)
     s = load_settings()

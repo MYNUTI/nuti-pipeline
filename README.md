@@ -51,11 +51,16 @@ pipeline round cancel 3                      # 3번 회차를 취소하고 받�
 ## 계산 · CSV
 
 ```powershell
+pipeline seed categories product_master.csv  # 지금 RDS 와 같은 분류로 분류표를 채운다 (처음 한 번, 다시 하려면 --replace)
+pipeline seed groups 묶음구성표.csv           # 묶음 구성(food_cd,group_key,is_representative)을 채운다 (처음 한 번)
+pipeline build                               # 끝까지 받은 원본으로 34컬럼 계산 → data/csv 에 CSV (서버에서는 cron 하루 1회 07시 전후)
+pipeline build --dry-run                     # 계산만 해서 data/preview 에 쓴다 (api 가 읽는 csv 폴더와 state.db 는 안 건드림)
+pipeline build --force                       # 새로 끝난 회차가 없어도 만든다
+pipeline build --again                       # 오늘 파일이 이미 있으면 _2 를 붙여 다시 만든다
+pipeline categorize export                   # 분류가 안 정해져 CSV 에서 뺀 새 제품 목록 → category_review.csv
+pipeline categorize import category_review.csv  # category 칸을 채운 파일을 넣는다 (분류 제외로 확정하려면 「-」)
+pipeline diff product_master.csv data\csv\product_master_20261124.csv  # 두 CSV 에서 바뀐 행 · 칸 수 비교 (첫 CSV 점검용)
 pipeline verify-hash product_master.csv      # CSV 의 content_hash 를 다시 계산해 파일 값과 같은지 확인 (불일치 0행이어야 함)
-pipeline build                               # 34컬럼 계산 → CSV (미구현, 서버에서는 cron 하루 1회 07시 전후)
-pipeline build --again                       # 오늘 파일이 이미 있으면 _2 를 붙여 다시 만든다 (미구현)
-pipeline categorize export                   # 분류가 안 정해진 새 제품 목록을 CSV 로 내보낸다 (미구현)
-pipeline categorize import 파일.csv          # 분류를 채운 CSV 를 넣는다 (미구현)
 ```
 
 ## 상태 저장

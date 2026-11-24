@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS builds (
     file_name       TEXT,                 -- NULL = 계산만 하고 파일은 안 만듦
     row_count       INTEGER,
     held_back       INTEGER,              -- 분류 대기로 뺀 새 제품 수
-    max_round_id    INTEGER NOT NULL      -- 이 build 가 본 마지막 DONE 회차 id
+    seen_until      TEXT NOT NULL         -- 이 build 가 본 DONE 회차의 가장 늦은 finished_at. 이보다 늦게 끝난 회차가 있으면 새 자료
 );
 """
 
@@ -94,5 +94,14 @@ def connect(path: Path) -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.execute("PRAGMA synchronous=NORMAL")
+    _migrate(conn)
     conn.executescript(SCHEMA)
     return conn
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """예전 구조의 빈 표를 새 구조로 바꾼다 (데이터가 있으면 건드리지 않는다)."""
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(builds)")}
+    if cols and "seen_until" not in cols and conn.execute("SELECT COUNT(*) FROM builds").fetchone()[0] == 0:
+        conn.execute("DROP TABLE builds")
+        conn.commit()
