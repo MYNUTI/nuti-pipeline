@@ -35,7 +35,7 @@ class TablesNotReady(RuntimeError):
 
 
 def rules_with_places(extra_place_names: Iterable[str | None]) -> NameRules:
-    """시도 17개 + I0300 · I1420 SITE_ADDR 에서 뽑은 지명 (2글자 이상)."""
+    """시도 17개 + I0300 SITE_ADDR 에서 뽑은 지명 (2글자 이상)."""
     places = set(PROVINCES)
     for p in extra_place_names:
         if p is not None and len(jstrip(p)) >= 2:

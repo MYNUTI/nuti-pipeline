@@ -179,6 +179,8 @@ def cmd_build(s: Settings, a) -> int:
     print(f"  바코드 {st.with_barcode:,} (제품명+제조사로 찾음 {st.barcode_by_name:,}, 겹쳐서 비움 {st.barcode_cleared:,})")
     print(f"  원재료 {st.with_ingredients:,} · 생산중단 {st.discontinued:,} · 브랜드 {st.with_brand:,} · 분류 {st.with_category:,}")
     print(f"  새 제품 {st.new_products:,} · 새 묶음 {rep.new_groups:,} · 지명 {rep.place_names:,}개")
+    print(f"  쿠팡 보정 키 일치 {rep.coupang_matched:,}/{rep.coupang_total:,} · 11-12 고침 키 일치 {rep.fix_matched:,}/{rep.fix_total:,}"
+          " (안 맞은 만큼 그 보정은 적용되지 않음)")
     if rep.held_back:
         print(f"  분류가 안 정해져 이번 CSV 에서 뺀 새 제품 {len(rep.held_back):,}개 → pipeline categorize export")
     return 0

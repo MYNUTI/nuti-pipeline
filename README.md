@@ -1,6 +1,6 @@
 # nuti-pipeline
 
-공공 API 13개를 주기적으로 받아 34컬럼 제품 데이터를 계산하고, `{DATA_DIR}/csv/product_master_YYYYMMDD.csv`로 내보낸다.
+공공 API 12개를 주기적으로 받아 34컬럼 제품 데이터를 계산하고, `{DATA_DIR}/csv/product_master_YYYYMMDD.csv`로 내보낸다.
 api(Spring)는 이 CSV만 읽어 RDS에 반영한다. 파이프라인은 DB에 접속하지 않는다.
 
 ## 로컬 실행 준비
@@ -17,23 +17,23 @@ pipeline init                     # 상태 저장 파일 data\state.db 를 만�
 
 ```powershell
 pytest                            # 규칙 테스트. 실제 API 는 부르지 않는다
-pytest -m live -s                 # 실제 공공 API 13개를 1페이지씩 불러 확인 (호출 18회, 기관 한도에 들어감)
+pytest -m live -s                 # 실제 공공 API 12개를 1페이지씩 불러 확인 (호출 17회, 기관 한도에 들어감)
 pytest -m live -s -k HACCP        # 실제 API 확인을 하나만 (-k 뒤 이름이 들어간 테스트만 실행)
 pytest -m live -s -k datagokr     # 공공데이터포털 5개만
-pytest -m live -s -k foodsafety   # 식품안전나라 8개만 (증분 조건 확인 포함, 호출 13회)
+pytest -m live -s -k foodsafety   # 식품안전나라 7개만 (증분 조건 확인 포함, 호출 12회)
 ```
 
 ## API 확인
 
 ```powershell
 pipeline probe C002                          # API 한 페이지만 불러 결과 코드 · 행 수 · 첫 행을 보여 준다 (저장 안 함, 호출 1회)
-pipeline probe C002 --cond 20261121          # 조건을 넣어 부른다 (증분은 YYYYMMDD, 생산실적 I0300 · I1420 은 YYYY)
+pipeline probe C002 --cond 20261121          # 조건을 넣어 부른다 (증분은 YYYYMMDD, 생산실적 I0300 은 YYYY)
 pipeline probe C002 --page 3                 # 3페이지를 부른다
 pipeline probe HACCP --raw                   # 응답 본문을 그대로 보여 준다 (기본 앞 2000자, --raw 5000 처럼 길이 지정)
 pipeline probe HACCP --param returnType=json # 공공데이터포털 요청에 파라미터를 더해 본다 (여러 번 가능, 수집에는 안 씀)
 ```
 
-API 이름: `NUTRI_DB` `FOODQR_LIST` `FOODQR_NUTRITION` `FOODQR_MAKER` `HACCP` `C005` `I2570` `C002` `C006` `I2852` `I0490` `I0300` `I1420` (대소문자 무관)
+API 이름: `NUTRI_DB` `FOODQR_LIST` `FOODQR_NUTRITION` `FOODQR_MAKER` `HACCP` `C005` `I2570` `C002` `C006` `I2852` `I0490` `I0300` (대소문자 무관)
 
 ## 수집
 
@@ -52,7 +52,7 @@ pipeline round cancel 3                      # 3번 회차를 취소하고 받�
 
 ```powershell
 pipeline seed categories product_master.csv  # 지금 RDS 와 같은 분류로 분류표를 채운다 (처음 한 번, 다시 하려면 --replace)
-pipeline seed groups 묶음구성표.csv           # 묶음 구성(food_cd,group_key,is_representative)을 채운다 (처음 한 번)
+pipeline seed groups 묶음구성표.csv           # (선택) 묶음 구성을 넣는다. 없으면 첫 build 가 공식으로 만들어 저장한다
 pipeline build                               # 끝까지 받은 원본으로 34컬럼 계산 → data/csv 에 CSV (서버에서는 cron 하루 1회 07시 전후)
 pipeline build --dry-run                     # 계산만 해서 data/preview 에 쓴다 (api 가 읽는 csv 폴더와 state.db 는 안 건드림)
 pipeline build --force                       # 새로 끝난 회차가 없어도 만든다

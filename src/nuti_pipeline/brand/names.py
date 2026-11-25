@@ -1,7 +1,7 @@
 """brand 칸 계산의 문자열 규칙 (Java BrandNameRules, brand.md 「함수 정의」 · 「회사 이름 정리」 · 「작은 표」).
 
 순수 함수 — tests/test_brand_names.py 로 고정. 지명 목록만 인스턴스마다 다르다
-(시도 17개가 기본, 수집이 붙으면 I0300 · I1420 SITE_ADDR 지명을 더한다).
+(시도 17개가 기본, 수집이 붙으면 I0300 SITE_ADDR 지명을 더한다).
 정규식은 Java 와 같게 ASCII 기준(re.A)으로 컴파일한다.
 """
 from __future__ import annotations

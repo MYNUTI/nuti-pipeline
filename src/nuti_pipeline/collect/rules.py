@@ -67,7 +67,7 @@ def after_page(api: Api, total: int | None, received_after: int, rows_this_page:
 # | I0490                              | 매일             | 전량                                                 |
 # | 영양성분DB · 푸드QR 3종            | 7일마다          | 전량                                                 |
 # | HACCP                              | 30일마다         | 전량                                                 |
-# | I0300 · I1420                      | 해마다, 밤       | 전량, EVL_YR = 작년                                  |
+# | I0300                              | 해마다, 밤       | 전량, EVL_YR = 작년                                  |
 # 받는 중인 회차가 있으면 열지 않음. 전량이 실패하면 24시간 뒤 다시 엶.
 # 식품안전나라 큰 전량(I0490 제외)은 밤(19~06시)에만 이어 받음.
 

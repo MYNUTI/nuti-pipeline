@@ -1,6 +1,6 @@
 """실제 공공 API 확인 — 손으로만 돌린다. 평소 pytest 에서는 건너뛴다.
 
-    pytest -m live -s                       # 13개 전부 (호출 18회)
+    pytest -m live -s                       # 12개 전부 (호출 17회)
     pytest -m live -s -k C002               # 하나만
     pytest -m live -s -k "foodsafety"       # 식품안전나라만
     pytest -m live -s -k "datagokr"         # 공공데이터포털만
@@ -46,7 +46,6 @@ REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     "I2852": ("PRDLST_REPORT_NO",),
     "I0490": ("PRDLST_REPORT_NO", "BRCDNO"),
     "I0300": ("SITE_ADDR",),
-    "I1420": ("SITE_ADDR",),
 }
 
 # 있어야 할 것 같지만 확인이 안 된 필드 — 없으면 경고만 출력
@@ -120,7 +119,7 @@ def test_공공데이터포털(clients, api):
     _check_page(api, _call(clients, api))
 
 
-# ── 2. 식품안전나라 8개: 조건 없이 1페이지 (I0300 · I1420 은 작년 조건) ──
+# ── 2. 식품안전나라 7개: 조건 없이 1페이지 (I0300 은 작년 조건) ──
 
 @pytest.mark.parametrize("api", FOODSAFETY, ids=lambda a: f"foodsafety-{a.name}")
 def test_식품안전나라(clients, api):

@@ -5,9 +5,12 @@
      (Java 와 달리 마지막 회차가 받는 중이어도 막지 않는다 — DONE 회차의 행만 읽으므로 이전 스냅샷으로 계산된다)
   2. 새 자료 확인: 마지막 build 뒤에 새로 끝난 회차가 없으면 CSV 를 만들지 않는다 (약속의 「파일이 없는 날」)
   3. 원본 읽기: 큰 API(C002 · C006 · I2852)는 우리 제품 보고번호만 남긴다
-  4. 계산: MasterBuilder + BrandResolver (지명 목록 = 시도 17개 + I0300 · I1420 SITE_ADDR)
+  4. 계산: MasterBuilder + BrandResolver (지명 목록 = 시도 17개 + I0300 SITE_ADDR)
   5. 분류: 분류표(category_map)에 있는 제품은 그 값. 없는 새 제품은 규칙 → 그래도 없으면 이번 CSV 에서 빼고 검토 대기로
   6. 저장: 새 묶음 · 검토 대기 · build 이력, CSV (.tmp → .csv)
+
+묶음 구성(데이터 팀의 food_cd → 묶음 키)은 받을 수 없어서, 처음 build 때 공식으로 묶음 키를 만들어 저장하고 이후 고정한다.
+쿠팡 보정 · 11-12 고침 키가 몇 개 맞는지 결과에 출력한다.
 """
 from __future__ import annotations
 
@@ -30,7 +33,7 @@ from .csv_out import write_master
 
 log = logging.getLogger(__name__)
 
-PLACE_APIS = ("I0300", "I1420")
+PLACE_APIS = ("I0300",)
 
 
 class BuildRefused(RuntimeError):
@@ -46,6 +49,10 @@ class BuildReport:
     new_groups: int = 0
     stats: Stats | None = None
     place_names: int = 0
+    coupang_matched: int = 0    # 쿠팡 보정 키 중 이번 묶음 키와 맞은 수 (안 맞으면 그 보정은 적용되지 않음)
+    coupang_total: int = 0
+    fix_matched: int = 0        # 11-12 고침 키 중 맞은 수
+    fix_total: int = 0
 
 
 # ── 원본 읽기 ─────────────────────────────────────────────────────────────
@@ -91,7 +98,7 @@ def has_new_data(conn: sqlite3.Connection) -> bool:
 
 
 def place_names(conn: sqlite3.Connection) -> set[str]:
-    """I0300 · I1420 SITE_ADDR 둘째 낱말에서 시 · 군 · 구를 뗀 2글자 이상 한글."""
+    """I0300 SITE_ADDR 둘째 낱말에서 시 · 군 · 구를 뗀 2글자 이상 한글."""
     out: set[str] = set()
     for api in PLACE_APIS:
         for r in raw_rows(conn, api):
@@ -169,8 +176,8 @@ def run(conn: sqlite3.Connection, csv_dir: Path, *, force: bool = False, again: 
         raise BuildRefused(f"브랜드 조회표가 준비되지 않았습니다: {tables.problem}")
     if conn.execute("SELECT COUNT(*) FROM category_map").fetchone()[0] == 0:
         raise BuildRefused("분류표가 비어 있습니다. 먼저 pipeline seed categories <product_master.csv>")
-    if conn.execute("SELECT COUNT(*) FROM brand_groups").fetchone()[0] == 0:
-        raise BuildRefused("묶음 구성이 비어 있습니다. 먼저 pipeline seed groups <묶음 구성표.csv>")
+    # 묶음 구성은 없어도 된다 — 없으면 묶음 키를 공식(제품명 · 제조사 · 총내용량의 sha256 앞 16자리)으로 새로 만들고 저장한다.
+    # 데이터 팀 키와 공식이 같으면 쿠팡 보정 · 11-12 고침이 그대로 걸린다. 몇 개가 맞았는지 결과에 남긴다
 
     until = seen_until(conn)
     inp, food_type = load_input(conn)
@@ -180,6 +187,9 @@ def run(conn: sqlite3.Connection, csv_dir: Path, *, force: bool = False, again: 
     result = MasterBuilder(rules, BrandResolver(tables, rules).resolve).build(inp)
     rep.stats = result.stats
     rep.new_groups = result.stats.new_groups
+    keys = set(result.grouping.group_of.values())
+    rep.coupang_total, rep.coupang_matched = len(tables.coupang_fix_map), len(keys & set(tables.coupang_fix_map))
+    rep.fix_total, rep.fix_matched = len(tables.fix1112_map), len(keys & set(tables.fix1112_map))
 
     # 분류: 새 제품 → 규칙 → 남은 것은 이번 CSV 에서 뺀다
     new_ids = set(result.new_without_category)

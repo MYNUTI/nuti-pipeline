@@ -128,7 +128,7 @@ def test_생산실적은_해마다_작년_것을_밤에():
     assert decide(A["I0300"], EVENING, Snapshot()) == Start(Mode.FULL, "2025")
     assert decide(A["I0300"], NOON, Snapshot()) is None
     y = _done(Mode.FULL, datetime(2026, 1, 3, 20, 0), "2025")
-    assert decide(A["I1420"], EVENING, Snapshot(y, y, y, y)) is None
+    assert decide(A["I0300"], EVENING, Snapshot(y, y, y, y)) is None
 
 
 def test_식품안전나라_큰_전량은_밤에만_받는다():

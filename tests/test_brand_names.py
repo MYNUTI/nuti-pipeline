@@ -6,7 +6,7 @@ import pytest
 from nuti_pipeline.brand.names import (NameRules, affiliate, compact, core, merge1, null_if_maker, same, strip_foreign,
                                        tokens)
 
-# 시도 + 예시에 쓰는 시 · 군 지명. 실제로는 I0300 · I1420 SITE_ADDR 에서 뽑아 더한다
+# 시도 + 예시에 쓰는 시 · 군 지명. 실제로는 I0300 SITE_ADDR 에서 뽑아 더한다
 RULES = NameRules({"서울", "경기", "원주", "천안", "익산", "서천"})
 
 

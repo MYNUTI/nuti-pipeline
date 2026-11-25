@@ -130,6 +130,18 @@ def test_build_전체_흐름(conn, tmp_path, tables):
     assert d.added == ["D2"] and d.same == 1 and d.changed == 0
 
 
+def test_묶음_구성_없이도_만들고_키를_저장한다(conn, tmp_path, tables):
+    fill_all(conn, [nutri("D1", "과자"), nutri("D2", "과자")])
+    master = tmp_path / "product_master.csv"
+    _write(master, ["master_id", "category"], [["D1", "0101"], ["D2", "0101"]])
+    build.seed_categories(conn, master)
+    rep = build.run(conn, tmp_path / "csv", tables=tables)
+    assert rep.rows == 2
+    keys = {r[0] for r in conn.execute("SELECT DISTINCT group_key FROM brand_groups")}
+    assert len(keys) == 1                    # 같은 제품명 · 제조사 · 용량 → 한 묶음
+    assert rep.coupang_total == 0 and rep.coupang_matched == 0
+
+
 def test_받는_중인_회차는_계산에_안_보인다(conn, tmp_path, tables):
     fill_all(conn, [nutri("D1", "옛 이름")])
     add_round(conn, "NUTRI_DB", [nutri("D1", "받는 중 이름")], status="RUNNING")

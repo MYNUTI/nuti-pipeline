@@ -34,9 +34,20 @@ CALL_LOG_KEEP_DAYS = 30
 # 원본이 큰 API 는 34컬럼 계산에 쓰는 필드만 저장한다 (디스크 절약). 나머지 API 는 응답 행 전체를 저장.
 # 여기서 빠진 필드가 나중에 필요해지면 그 API 를 전량으로 다시 받아야 한다.
 KEEP_FIELDS: dict[str, tuple[str, ...]] = {
-    "C002": ("PRDLST_REPORT_NO", "RAWMTRL_NM", "CHNG_DT"),   # 약 108만 행
+    # 약 35만 행, 한 행에 영양성분 칸이 157개라 통째로 두면 1GB 이상. 34컬럼 · 브랜드 · 분류에 쓰는 칸만 남긴다
+    "NUTRI_DB": (
+        "FOOD_CD", "FOOD_NM_KR", "DB_GRP_NM", "DB_CLASS_NM",
+        "FOOD_CAT1_NM", "FOOD_REF_CD", "FOOD_REF_NM",              # 분류
+        "MAKER_NM", "SELLER_MANUFAC_NM", "IMP_MANUFAC_NM",         # 제조사 · 브랜드
+        "ITEM_REPORT_NO", "Z10500", "SERVING_SIZE", "NUTRI_AMOUNT_SERVING", "UPDATE_DATE",
+        # 열량 · 나트륨 · 탄수화물 · 당류 · 지방 · 트랜스지방 · 포화지방 · 콜레스테롤 · 식이섬유 · 단백질
+        "AMT_NUM1", "AMT_NUM13", "AMT_NUM6", "AMT_NUM7", "AMT_NUM4",
+        "AMT_NUM25", "AMT_NUM24", "AMT_NUM23", "AMT_NUM8", "AMT_NUM3",
+    ),
+    "C002":("PRDLST_REPORT_NO", "RAWMTRL_NM", "CHNG_DT"),   # 약 108만 행
     "C006": ("PRDLST_REPORT_NO", "RAWMTRL_NM", "CHNG_DT"),
     "I2852": ("PRDLST_REPORT_NO", "CHNG_DT"),                # 약 188만 행
+    "I0300": ("SITE_ADDR",),                                 # 지명 목록에만 쓴다
 }
 
 TS = "%Y-%m-%dT%H:%M:%S"
