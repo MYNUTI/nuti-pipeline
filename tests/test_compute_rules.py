@@ -46,6 +46,7 @@ def test_총내용량은_g_mL로_맞춘다():
     assert amount("900mL").format() == "900mL"
     assert amount("1.8 L").format() == "1800mL"
     assert amount("9.5 g").format() == "9.5g"
+    assert amount("1,200.000g").format() == "1200g"     # 영양성분DB Z10500 의 천 단위 쉼표
     assert amount_of("300", "g").format() == "300g"
 
 

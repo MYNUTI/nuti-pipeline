@@ -126,11 +126,12 @@ _AMOUNT = re.compile(r"^(\d+(?:\.\d+)?)\s*(kg|g|ml|l)$", re.ASCII | re.IGNORECAS
 
 
 def amount(raw: str | None) -> Amount | None:
-    """「80.00g」 「2.2kg」 「900mL」 형태만 받는다. kg → g, L → mL. 묶음 표기(×, *, x)나 다른 모양은 None."""
+    """「80.00g」 「2.2kg」 「900mL」 형태만 받는다. kg → g, L → mL. 묶음 표기(×, *, x)나 다른 모양은 None.
+    천 단위 쉼표는 뗀다 (영양성분DB Z10500 에 "1,200.000g" 같은 값이 있음)."""
     t = text(raw)
     if t is None:
         return None
-    t = unicodedata.normalize("NFKC", t).replace(" ", "")
+    t = unicodedata.normalize("NFKC", t).replace(" ", "").replace(",", "")
     m = _AMOUNT.match(t)
     if not m:
         return None
